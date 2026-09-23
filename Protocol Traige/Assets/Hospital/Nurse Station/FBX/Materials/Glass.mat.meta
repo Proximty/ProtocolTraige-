@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e252e2833873f5246b35305cc0c43049
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317817
+  packageName: Nurse Station
+  packageVersion: 1.0
+  assetPath: Assets/Nurse Station/FBX/Materials/Glass.mat
+  uploadId: 750570

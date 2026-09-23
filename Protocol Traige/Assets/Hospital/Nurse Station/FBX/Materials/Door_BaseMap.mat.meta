@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 207172bf8410af9479228120f756ced4
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317817
+  packageName: Nurse Station
+  packageVersion: 1.0
+  assetPath: Assets/Nurse Station/FBX/Materials/Door_BaseMap.mat
+  uploadId: 750570

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c01bb7a0ae9c5184ba501223491a0e04
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317817
+  packageName: Nurse Station
+  packageVersion: 1.0
+  assetPath: Assets/Nurse Station/FBX/Materials/Assets_BaseMap.mat
+  uploadId: 750570

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b811c5a74890b7b45afa0d971d14a2b0
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 317817
+  packageName: Nurse Station
+  packageVersion: 1.0
+  assetPath: Assets/Nurse Station/Scene/Nurse Room_Profiles/Post Processing Profile.asset
+  uploadId: 750570
