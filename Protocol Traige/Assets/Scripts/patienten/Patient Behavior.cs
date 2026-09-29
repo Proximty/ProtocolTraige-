@@ -17,9 +17,79 @@ public class PatientBehavior : MonoBehaviour
     public AudioClip airwayClip;
     public AudioClip breathingClip;
 
+    [Header("Stethoscope Audio Settings")]
+    public AudioClip heartSoundClip; // Eventueel extra audio clip voor hartslag
+
+    [Header("Reanimatie (CPR) Settings")]
+    public int benodigdeCompressies = 30;
+    public int huidigeCompressies = 0;
+    public bool isGereanimeerd = false;
+
     /// <summary>
-    /// Pas het gedrag en de animatie aan op basis van de berekende NTS-urgentie.
+    /// Wordt aangeroepen bij elke geldige borstcompressie (VR Controller).
+    /// Enkel mogelijk bij U0_Reanimatie.
     /// </summary>
+    public void RegistreerCompressie()
+    {
+        // 1. Controleer of de patiënt daadwerkelijk urgentie U0 (Reanimatie) heeft
+        if (toegewezenUrgentie != NtsUrgentie.U0_Reanimatie)
+        {
+            Debug.LogWarning("Compressie genegeerd: Patiënt heeft geen U0_Reanimatie urgentie!");
+            return;
+        }
+
+        // 2. Voorkom extra compressies als de patiënt al geslaagd is
+        if (isGereanimeerd) return;
+
+        huidigeCompressies++;
+        Debug.Log($"Compressie uitgevoerd! Totaal: {huidigeCompressies}/{benodigdeCompressies}");
+
+        // Speel bij elke drukbeweging een kort ademhalings-/feedbackgeluid af
+        if (ademhalingAudioSource != null && breathingClip != null)
+        {
+            ademhalingAudioSource.PlayOneShot(breathingClip, 0.4f);
+        }
+
+        // 3. Controleer of de reanimatie voltooid is
+        if (huidigeCompressies >= benodigdeCompressies)
+        {
+            ReanimatieSucces();
+        }
+    }
+
+    private void ReanimatieSucces()
+    {
+        isGereanimeerd = true;
+        Debug.Log("Patiënt is succesvol gereanimeerd!");
+
+        // Pas eventueel animatie / status van de patiënt aan
+        if (patientAnimator != null)
+        {
+            patientAnimator.SetBool("IsGereanimeerd", true);
+        }
+    }
+
+    /// <summary>
+    /// Speelt de ademhaling/hartslag af wanneer de stethoscoop-knop wordt ingedrukt.
+    /// </summary>
+    public void SpeelStethoscopeGeluidAf()
+    {
+        if (ademhalingAudioSource == null)
+        {
+            Debug.LogWarning("Geen ademhalingAudioSource toegewezen op PatientBehavior!");
+            return;
+        }
+
+        // Kies de clip die je wilt afspelen (bijv. breathingClip of heartSoundClip)
+        AudioClip clipOmTeSpelen = heartSoundClip != null ? heartSoundClip : (breathingClip != null ? breathingClip : airwayClip);
+
+        if (clipOmTeSpelen != null)
+        {
+            ademhalingAudioSource.PlayOneShot(clipOmTeSpelen);
+            Debug.Log($"Stethoscope geluid afgespeeld: {clipOmTeSpelen.name}");
+        }
+    }
+
     public void StelGedragIn(NtsUrgentie urgentie)
     {
         toegewezenUrgentie = urgentie;
@@ -91,9 +161,6 @@ public class PatientBehavior : MonoBehaviour
 
     // --- DISABILITY & EXPOSURE DIALOOG (Aangeroepen door OnderzoekMenuUI) ---
 
-    /// <summary>
-    /// Geeft de gesproken reactie van de patiënt voor Disability (1e persoon)
-    /// </summary>
     public string GetDisabilityReactie()
     {
         if (patientData == null) return "...";
@@ -108,9 +175,6 @@ public class PatientBehavior : MonoBehaviour
         return "\"*Mompelt heel zachtjes*... Ik... ik krijg mijn ogen amper open...\"";
     }
 
-    /// <summary>
-    /// Geeft de gesproken reactie van de patiënt voor Exposure (1e persoon)
-    /// </summary>
     public string GetExposureReactie()
     {
         if (patientData == null) return "...";
@@ -122,6 +186,6 @@ public class PatientBehavior : MonoBehaviour
         if (score >= 5)
             return "\"Brr... ik heb het ontzettend koud! Mijn benen en armen doen ook pijn van de schaafwonden.\"";
 
-        return "\"Ik lig helemaal te rillen van de kou... alles doet pijn als ik beweeg!\"";
+        return "\"Ik lig helemaal te rillingen van de kou... alles doet pijn als ik beweeg!\"";
     }
 }
