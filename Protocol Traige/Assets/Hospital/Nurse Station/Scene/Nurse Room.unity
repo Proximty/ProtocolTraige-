@@ -1203,7 +1203,7 @@ MonoBehaviour:
   bedTransform: {fileID: 988323701}
   stopAfstand: 1.2
   bedCollider: {fileID: 1198822590}
-  verticaleOffset: 0.5
+  verticaleOffset: -0.8
   ligRotatieOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &201964851
 GameObject:
