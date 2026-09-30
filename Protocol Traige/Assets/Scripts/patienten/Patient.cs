@@ -1,21 +1,28 @@
 using UnityEngine;
-using UnityEngine.SocialPlatforms.Impl;
 
+[CreateAssetMenu(fileName = "NieuwePatientData", menuName = "Medical/Patient Data")]
 public class Patient : ScriptableObject
 {
-    protected int Airway = Random.Range(1, 10);
-    protected int Breathing = Random.Range(1, 10);
-    protected int Cirulation = Random.Range(1, 10);
-    protected int Disabillity = Random.Range(1, 10);
-    protected int Exposure = Random.Range(1, 10);
+    [Header("ABCDE Waarden")]
+    [SerializeField] public int Airway;
+    [SerializeField] public int Breathing;
+    [SerializeField] public int Cirulation;
+    [SerializeField] public int Disabillity;
+    [SerializeField] public int Exposure;
 
+    // Public getters
     public int airway => Airway;
     public int breathing => Breathing;
     public int circulation => Cirulation;
-    public int exposure => Exposure;
     public int disabillity => Disabillity;
+    public int exposure => Exposure;
 
-
-
-
+    public void Initialize()
+    {
+        Airway = Random.Range(1, 11);
+        Breathing = Random.Range(1, 11);
+        Cirulation = Random.Range(1, 11);
+        Disabillity = Random.Range(1, 11);
+        Exposure = Random.Range(1, 11);
+    }
 }

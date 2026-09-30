@@ -6,7 +6,7 @@ public class CPRBorstCollider : MonoBehaviour
     private PatientBehavior patient;
 
     [Header("Instellingen")]
-    public float minimaleDiepte = 0.05f; // 5 cm omlaag duwen
+    public float minimaleDiepte = 0.05f; // 5 cm naar beneden duwen
     public float hapticDuration = 0.15f;
     public float hapticIntensity = 0.7f;
 
@@ -33,7 +33,7 @@ public class CPRBorstCollider : MonoBehaviour
     {
         if (actieveController == null || patient == null) return;
 
-        // Controleer direct op U0_Reanimatie
+        // Mag alleen wanneer de patiënt U0_Reanimatie heeft en nog niet gereanimeerd is
         if (patient.toegewezenUrgentie != NtsUrgentie.U0_Reanimatie || patient.isGereanimeerd) return;
 
         float huidigeDiepte = startY - actieveController.transform.position.y;
