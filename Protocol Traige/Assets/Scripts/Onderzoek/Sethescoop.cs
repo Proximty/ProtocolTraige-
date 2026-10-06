@@ -8,32 +8,47 @@ public class StethoscopeInteraction : MonoBehaviour
     private XRGrabInteractable grabInteractable;
     private PatientBehavior huidigePatient;
 
+    [Header("Instellingen")]
+    private Vector3 origineleSchaal;
+
     void Awake()
     {
         grabInteractable = GetComponent<XRGrabInteractable>();
+        origineleSchaal = transform.localScale;
+    }
+
+    void LateUpdate()
+    {
+        // Voorkomt dat het model vervormt als de parent controller een afwijkende schaal heeft
+        if (transform.localScale != origineleSchaal)
+        {
+            transform.localScale = origineleSchaal;
+        }
     }
 
     void OnEnable()
     {
-        // Luister naar de Trigger-knop op de controller
-        grabInteractable.activated.AddListener(OnTriggerPressed);
+        // 'activated' luistert automatisch naar de actieknop (B-knop / Trigger) als je het object vasthebt
+        grabInteractable.activated.AddListener(OnButtonPressed);
     }
 
     void OnDisable()
     {
-        grabInteractable.activated.RemoveListener(OnTriggerPressed);
+        grabInteractable.activated.RemoveListener(OnButtonPressed);
     }
 
-    private void OnTriggerPressed(ActivateEventArgs args)
+    private void OnButtonPressed(ActivateEventArgs args)
     {
-        // Als we bij een patiënt staan, speel het geluid van die patiënt af
+        // Speel de ademhalingsaudio op de patiënt alleen af als het borststuk bij de patiënt gehouden wordt
         if (huidigePatient != null)
         {
+            // Pas deze functienaam eventueel aan naar de exacte functienaam in jouw patient audio script
             huidigePatient.SpeelStethoscopeGeluidAf();
+            Debug.Log("[Stethoscope] B-knop ingedrukt: Ademhalingsgeluid afgespeeld!");
         }
     }
 
-    // Detecteer of het borststuk de patiënt raakt via Triggers/Colliders
+    // Detecteer of de kop van de stethoscoop tegen de patiënt aan gehouden wordt
     private void OnTriggerEnter(Collider other)
     {
         PatientBehavior patient = other.GetComponentInParent<PatientBehavior>();
