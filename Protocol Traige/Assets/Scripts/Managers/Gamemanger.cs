@@ -29,34 +29,29 @@ public class GameManager : MonoBehaviour
 
         int fouten = 0;
 
-        // 1. ABCDE Controle
         if (airway != huidigePatient.airway) fouten++;
         if (breathing != huidigePatient.breathing) fouten++;
         if (circulation != huidigePatient.circulation) fouten++;
         if (disability != huidigePatient.disabillity) fouten++;
         if (exposure != huidigePatient.exposure) fouten++;
 
-        // 2. Bereken verwachte NTS Urgentie
         int totaleScore = huidigePatient.airway + huidigePatient.breathing + huidigePatient.circulation + huidigePatient.disabillity + huidigePatient.exposure;
         NtsUrgentie correcteUrgentie = BepaalNtsKlasse(totaleScore);
 
-        // 3. NTS Urgentie Controle
         if (gekozenUrgentie != correcteUrgentie) fouten++;
 
-        // 4. Stuur feedback naar het Canvas scherm
-        if (timerUI != null)
-            timerUI.StopTimer();
-
         bool allesGoed = (fouten == 0);
-        string titel = allesGoed ? "UITSTEKEND!" : "HERRASSING / FOUTEN DETECTEERD";
+        string titel = allesGoed ? "GOED BEOORDEELD" : "FOUTEN GEMAAKT";
         string bericht = allesGoed
-            ? "Alle ABCDE-scores en de NTS-urgentie zijn correct beoordeeld!"
-            : $"Je hebt {fouten} fout(en) gemaakt in de beoordeling van de patiënt.";
+            ? "Alle ABCDE-scores en NTS-urgentie zijn correct!"
+            : $"Je hebt {fouten} fout(en) gemaakt in de beoordeling.";
 
+        // Geef door aan de Timer dat de patiënt is afgehandeld
         if (timerUI != null)
-            timerUI.ToonFeedback(allesGoed, titel, bericht);
+        {
+            timerUI.PatientAfgehandeld(allesGoed, titel, bericht);
+        }
 
-        // 5. Stuur gedrag en beweging aan
         if (patientBehavior != null) patientBehavior.StelGedragIn(correcteUrgentie);
         if (patientMovement != null) patientMovement.WijsUrgentieEnBedToe(correcteUrgentie, bedTransform, bedCollider);
     }

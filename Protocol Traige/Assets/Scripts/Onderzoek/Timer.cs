@@ -3,21 +3,26 @@ using TMPro;
 
 public class TriageTimerUI : MonoBehaviour
 {
+    [Header("Level & Progressie Settings")]
+    public int huidigLevel = 1;
+    public int basisAantalPatienten = 3; // Level 1 heeft 3 patienten
+    private int benodigdAantalPatienten;
+    private int afgehandeldePatientenInLevel = 0;
+
     [Header("Timer Instellingen")]
-    public float maxTijdInSeconden = 90f;
+    public float maxTijdInSeconden = 90f; // 1.5 minuut per patient
     private float resterendeTijd;
     private bool isTimerActief = false;
 
     [Header("Reanimatie (CPR) Settings")]
-    public float benodigdeCprTijd = 60f; // Total benodigde compressies/seconden
+    public float benodigdeCprTijd = 60f;
     private float cprVoortgang = 0f;
     private bool isReanimatieActief = false;
-
-    [Tooltip("Hoeveel seconden voortgang elke druk op SPATIE oplevert")]
     public float cprSnelheidPerDruk = 1.0f;
 
     [Header("UI Elementen - Tekst")]
     public TextMeshProUGUI timerTekst;
+    public TextMeshProUGUI levelTekst; // Bijv: "Level 1 (1/3)"
 
     [Header("UI Elementen - Feedback Panel")]
     public GameObject feedbackPaneel;
@@ -31,6 +36,7 @@ public class TriageTimerUI : MonoBehaviour
     {
         if (feedbackPaneel != null) feedbackPaneel.SetActive(false);
 
+        ResetLevelProgressie();
         HerstartTimer();
     }
 
@@ -53,7 +59,7 @@ public class TriageTimerUI : MonoBehaviour
             }
         }
 
-        // 2. Reanimatie (CPR) Minigame Input
+        // 2. Reanimatie (CPR) Input
         if (isReanimatieActief)
         {
             if (Input.GetKeyDown(KeyCode.Space))
@@ -68,6 +74,28 @@ public class TriageTimerUI : MonoBehaviour
                 isReanimatieActief = false;
                 AfrondenReanimatie();
             }
+        }
+    }
+
+    public void ResetLevelProgressie()
+    {
+        huidigLevel = 1;
+        afgehandeldePatientenInLevel = 0;
+        UpdateBenodigdAantal();
+    }
+
+    private void UpdateBenodigdAantal()
+    {
+        // Level 1 = 3, Level 2 = 4, Level 3 = 5, enz.
+        benodigdAantalPatienten = basisAantalPatienten + (huidigLevel - 1);
+        UpdateLevelUI();
+    }
+
+    private void UpdateLevelUI()
+    {
+        if (levelTekst != null)
+        {
+            levelTekst.text = $"Level {huidigLevel} - Patiënt: {afgehandeldePatientenInLevel}/{benodigdAantalPatienten}";
         }
     }
 
@@ -87,6 +115,7 @@ public class TriageTimerUI : MonoBehaviour
         isTimerActief = true;
 
         if (feedbackPaneel != null) feedbackPaneel.SetActive(false);
+        UpdateLevelUI();
     }
 
     public void StopTimer()
@@ -133,7 +162,7 @@ public class TriageTimerUI : MonoBehaviour
         }
         else
         {
-            ToonFeedback(false, "PATIËNT WEGGEGAAN", "Je hebt er te lang over gedaan. De patiënt is boos vertrokken.");
+            PatientAfgehandeld(false, "PATIËNT WEGGEGAAN", "Je hebt er te lang over gedaan. De patiënt is boos vertrokken.");
 
             if (gameManager != null && gameManager.patientMovement != null)
             {
@@ -155,7 +184,7 @@ public class TriageTimerUI : MonoBehaviour
 
     private void AfrondenReanimatie()
     {
-        ToonFeedback(false, "REANIMATIE AFGEROND", "Patiënt is geheranimeerd, maar de triage is mislukt door tijdgebrek.");
+        PatientAfgehandeld(false, "REANIMATIE AFGEROND", "Patiënt is geheranimeerd, maar de triage is mislukt door tijdgebrek.");
 
         if (gameManager != null && gameManager.patientMovement != null)
         {
@@ -163,10 +192,33 @@ public class TriageTimerUI : MonoBehaviour
         }
     }
 
-    public void ToonFeedback(bool isCorrect, string titel, string bericht)
+    /// <summary>
+    /// Wordt aangeroepen wanneer een patiënt klaar is (goed, fout of reanimatie)
+    /// </summary>
+    public void PatientAfgehandeld(bool isCorrect, string titel, string bericht)
     {
         StopTimer();
+        afgehandeldePatientenInLevel++;
 
+        // Controleer of het level is voltooid
+        if (afgehandeldePatientenInLevel >= benodigdAantalPatienten)
+        {
+            huidigLevel++;
+            afgehandeldePatientenInLevel = 0;
+            UpdateBenodigdAantal();
+
+            string levelVoltooidBericht = $"{bericht}\n\nGEFELICITEERD! Level {huidigLevel - 1} voltooid! Level {huidigLevel} heeft nu {benodigdAantalPatienten} patiënten.";
+            ToonFeedback(titel, levelVoltooidBericht);
+        }
+        else
+        {
+            UpdateLevelUI();
+            ToonFeedback(titel, bericht);
+        }
+    }
+
+    private void ToonFeedback(string titel, string bericht)
+    {
         if (feedbackPaneel != null)
         {
             feedbackPaneel.SetActive(true);
