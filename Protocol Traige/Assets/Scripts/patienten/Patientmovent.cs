@@ -1,80 +1,160 @@
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Events;
 
 public class PatientMovement : MonoBehaviour
 {
-    [Header("Bed & Positionering")]
+    [Header("Patient Status")]
+    public NtsUrgentie huidigeUrgentie;
+
+    [Header("Doel Locaties")]
     public Transform bedTransform;
+    public BoxCollider bedCollider;
+    public Transform exitPunt;
     public float stopAfstand = 0.8f;
 
-    [Header("Collider Alignment")]
-    [Tooltip("Sleep hier de BoxCollider van het bed/matras naartoe")]
-    public BoxCollider bedCollider;
-
-    [Tooltip("Zet deze waarde op een negatief getal (bijv. -0.15 of -0.2) om haar wat meer naar beneden in het matras te zakken")]
-    public float verticaleOffset = -0.1f;
-
-    [Tooltip("Extra rotatie-offset als de animatie nog schuin ligt (bijv. Y = 90 of 180)")]
+    [Header("Hoogte & Rotatie Offset")]
+    public float verticaleOffset = -0.15f;
     public Vector3 ligRotatieOffset = Vector3.zero;
+
+    [Header("Unity Events")]
+    public UnityEvent OnAangekomenBijBed;
+    public UnityEvent OnAangekomenBijExit;
 
     private NavMeshAgent navAgent;
     private PatientAnimation animationController;
-    private bool isOnderwegNaarBed = false;
+    private enum BewegingStatus { Idle, LopenNaarBed, LopenNaarExit }
+    private BewegingStatus huidigeStatus = BewegingStatus.Idle;
 
     void Awake()
     {
         navAgent = GetComponent<NavMeshAgent>();
         animationController = GetComponent<PatientAnimation>();
+
+        // Automatische fallback: Zoek de doelen in de scene als ze niet via de Spawner/Inspector zijn ingevuld!
+        ZoekAutomatischLocaties();
     }
 
-    void Update()
+    /// <summary>
+    /// Zoekt automatisch naar GameObjects als ze 'None' zijn
+    /// </summary>
+    public void ZoekAutomatischLocaties()
     {
-        if (isOnderwegNaarBed && navAgent != null && bedTransform != null)
+        // Zoek het bed als bedTransform leeg is
+        if (bedTransform == null)
         {
-            if (!navAgent.pathPending && navAgent.remainingDistance <= stopAfstand)
+            GameObject bedObj = GameObject.FindWithTag("Bed");
+            if (bedObj != null)
             {
-                StopEnGaLiggen();
+                bedTransform = bedObj.transform;
+                if (bedCollider == null)
+                    bedCollider = bedObj.GetComponent<BoxCollider>();
             }
         }
+
+        // Zoek de exit als exitPunt leeg is
+        if (exitPunt == null)
+        {
+            GameObject exitObj = GameObject.FindWithTag("Exit");
+            if (exitObj != null)
+                exitPunt = exitObj.transform;
+        }
+    }
+
+    public void InitialiseerPatiënt(Transform bed, BoxCollider collider, Transform exit)
+    {
+        bedTransform = bed;
+        bedCollider = collider;
+        exitPunt = exit;
+    }
+
+    public void WijsUrgentieEnBedToe(NtsUrgentie urgentie, Transform doelBed, BoxCollider doelCollider)
+    {
+        huidigeUrgentie = urgentie;
+        if (doelBed != null) bedTransform = doelBed;
+        if (doelCollider != null) bedCollider = doelCollider;
+
+        StartLopenNaarBed();
     }
 
     public void StartLopenNaarBed()
     {
-        if (bedTransform == null) return;
+        // Extra check voor als ze nog steeds null zijn
+        ZoekAutomatischLocaties();
+
+        if (bedTransform == null)
+        {
+            Debug.LogError($"[PatientMovement] KAN NIET LOPEN: Bed Transform is 'None' op {gameObject.name}!");
+            return;
+        }
 
         if (navAgent != null)
         {
             navAgent.enabled = true;
             navAgent.isStopped = false;
             navAgent.SetDestination(bedTransform.position);
-            isOnderwegNaarBed = true;
+            huidigeStatus = BewegingStatus.LopenNaarBed;
 
             if (animationController != null)
-            {
                 animationController.SpeelLopen();
+        }
+    }
+
+    public void StartLopenNaarExit()
+    {
+        ZoekAutomatischLocaties();
+
+        if (exitPunt == null)
+        {
+            Debug.LogError($"[PatientMovement] KAN NIET WEGLOPEN: Exit Punt is 'None' op {gameObject.name}!");
+            return;
+        }
+
+        if (navAgent != null)
+        {
+            navAgent.enabled = true;
+            navAgent.isStopped = false;
+            navAgent.SetDestination(exitPunt.position);
+            huidigeStatus = BewegingStatus.LopenNaarExit;
+
+            if (animationController != null)
+                animationController.SpeelLopen();
+        }
+    }
+
+    void Update()
+    {
+        if (navAgent == null || !navAgent.enabled || navAgent.pathPending) return;
+
+        if (navAgent.remainingDistance <= stopAfstand)
+        {
+            if (huidigeStatus == BewegingStatus.LopenNaarBed)
+            {
+                StopEnGaLiggen();
+            }
+            else if (huidigeStatus == BewegingStatus.LopenNaarExit)
+            {
+                BereikExit();
             }
         }
     }
 
     public void StopEnGaLiggen()
     {
-        isOnderwegNaarBed = false;
+        huidigeStatus = BewegingStatus.Idle;
 
-        // 1. Schakel NavMeshAgent uit
         if (navAgent != null)
         {
             navAgent.isStopped = true;
             navAgent.enabled = false;
         }
 
-        // 2. Bepaal de exacte positie inclusief de gewenste Y-correctie
         if (bedTransform != null)
         {
             Vector3 doelPositie = bedTransform.position;
 
             if (bedCollider != null)
             {
-                // Bovenkant BoxCollider + de verticale offset voor de gewenste inzinking
                 float matrasBovenkantY = bedCollider.bounds.max.y + verticaleOffset;
                 doelPositie = new Vector3(bedTransform.position.x, matrasBovenkantY, bedTransform.position.z);
             }
@@ -87,10 +167,20 @@ public class PatientMovement : MonoBehaviour
             transform.rotation = bedTransform.rotation * Quaternion.Euler(ligRotatieOffset);
         }
 
-        // 3. Start de lig-animatie
         if (animationController != null)
-        {
             animationController.SpeelLiggen();
-        }
+
+        OnAangekomenBijBed?.Invoke();
+    }
+
+    private void BereikExit()
+    {
+        huidigeStatus = BewegingStatus.Idle;
+
+        if (navAgent != null)
+            navAgent.isStopped = true;
+
+        OnAangekomenBijExit?.Invoke();
+        Destroy(gameObject, 0.5f);
     }
 }
