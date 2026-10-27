@@ -1,169 +1,307 @@
-using System;
 using System.Collections;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
-[System.Serializable]
-public class SessieResponse
-{
-    public int sessieId;
-}
-
+/// <summary>
+/// Singleton die alle communicatie met de .NET REST-API afhandelt.
+/// Overleeft scene-loads via DontDestroyOnLoad.
+/// 
+/// VEREISTE API-ENDPOINTS:
+///   POST  /api/login          { gebruikersnaam, wachtwoord }
+///   POST  /api/registreer     { gebruikersnaam, email, wachtwoord }
+///   POST  /api/sessie         { gebruikerId }           → { id }
+///   POST  /api/patientcase    { PatientCaseDto }
+///   PUT   /api/sessie/{id}    { eindLevel }
+/// </summary>
 public class DatabaseManager : MonoBehaviour
 {
-    public static DatabaseManager Instance { get; private set; }
+    // ══════════════════════════════════════════════════════════════════
+    //  SINGLETON
+    // ══════════════════════════════════════════════════════════════════
 
-    [Header("Web Server Instellingen")]
-    // Vervang dit door de echte URL naar je webserver of map (bijv. op je lokale XAMPP/WAMP server)
-    public string serverUrl = "http://localhost/protocol_triage_api/";
+    private static DatabaseManager _instance;
 
-    private int huidigeSessieId = -1;
+    public static DatabaseManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindFirstObjectByType<DatabaseManager>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("[DatabaseManager]");
+                    _instance = go.AddComponent<DatabaseManager>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            return _instance;
+        }
+    }
 
     private void Awake()
     {
-        if (Instance == null)
+        if (_instance == null)
         {
-            Instance = this;
+            _instance = this;
             DontDestroyOnLoad(gameObject);
-            StartCoroutine(InitialiseerDatabaseServer());
         }
-        else
+        else if (_instance != this)
         {
             Destroy(gameObject);
+            return;
         }
     }
 
-    private IEnumerator InitialiseerDatabaseServer()
-    {
-        // We sturen een verzoek om de database/tabellen klaar te zetten op de server
-        using (UnityWebRequest www = UnityWebRequest.Get(serverUrl + "init.php"))
-        {
-            yield return www.SendWebRequest();
+    // ══════════════════════════════════════════════════════════════════
+    //  INSPECTOR VELDEN
+    // ══════════════════════════════════════════════════════════════════
 
-            if (www.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogError("[DatabaseManager] Kon geen verbinding maken met de server: " + www.error);
-            }
-            else
-            {
-                Debug.Log("[DatabaseManager] Server connectie succesvol: " + www.downloadHandler.text);
-            }
-        }
-    }
+    [Header("API Instellingen")]
+    [Tooltip("Basis-URL van de .NET API, bijv. http://localhost:5000/api")]
+    public string apiUrl = "http://localhost:5000/api";
 
+    [Header("Account (fallback als SessionData leeg is)")]
+    public int gekoppeldeGebruikerId = 1;
+
+    // ══════════════════════════════════════════════════════════════════
+    //  PRIVÉ STATUS
+    // ══════════════════════════════════════════════════════════════════
+
+    private int  _huidigeSessieId  = -1;
+    private bool _sessieActief     = false;
+
+    public int  HuidigeSessieId => _huidigeSessieId;
+    public bool SessieActief    => _sessieActief;
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SESSIE BEHEER
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Start een nieuwe sessie voor de ingelogde gebruiker.
+    /// Wordt aangeroepen vanuit MainMenuManager.OnStartKnopGedrukt().
+    /// </summary>
     public void StartNieuweSessie()
     {
+        // Gebruik altijd de ingelogde gebruiker uit SessionData wanneer beschikbaar
+        if (SessionData.IsIngelogd)
+            gekoppeldeGebruikerId = SessionData.GebruikerId;
+
+        if (gekoppeldeGebruikerId <= 0)
+        {
+            Debug.LogError("[DatabaseManager] Geen geldig gebruikerId – log eerst in!");
+            return;
+        }
+
+        // Reset vorige sessie-status
+        _huidigeSessieId = -1;
+        _sessieActief    = false;
+
         StartCoroutine(StartSessieRoutine());
     }
 
     private IEnumerator StartSessieRoutine()
     {
-        WWWForm form = new WWWForm();
-        form.AddField("actie", "start_sessie");
+        string jsonBody = $"{{\"gebruikerId\": {gekoppeldeGebruikerId}}}";
+        byte[] bodyRaw  = Encoding.UTF8.GetBytes(jsonBody);
 
-        using (UnityWebRequest www = UnityWebRequest.Post(serverUrl + "api.php", form))
+        using UnityWebRequest request = new UnityWebRequest($"{apiUrl}/sessie", "POST");
+        request.uploadHandler   = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
         {
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success)
+            SessieResponse response = JsonUtility.FromJson<SessieResponse>(request.downloadHandler.text);
+            if (response != null && response.id > 0)
             {
-                Debug.LogError("Fout bij StartNieuweSessie: " + www.error);
+                _huidigeSessieId = response.id;
+                _sessieActief    = true;
+                Debug.Log($"[DatabaseManager] ✅ Sessie gestart (Sessie ID: {_huidigeSessieId}, Gebruiker: {gekoppeldeGebruikerId})");
             }
             else
             {
-                string jsonResult = www.downloadHandler.text;
-                Debug.Log("Ontvangen JSON van server: " + jsonResult);
-
-                // Gebruik Unity's JsonUtility om het nieuwe sessie-ID uit te lezen
-                SessieResponse response = JsonUtility.FromJson<SessieResponse>(jsonResult);
-                if (response != null)
-                {
-                    huidigeSessieId = response.sessieId;
-                    Debug.Log($"[DatabaseManager] Nieuwe triage sessie gestart (ID: {huidigeSessieId})");
-                }
+                Debug.LogError($"[DatabaseManager] ❌ Server stuurde een ongeldig sessie-antwoord: {request.downloadHandler.text}");
             }
         }
-    }
-
-    public void SlaPatientCaseOp(int level, Patient correcteData, NtsUrgentie correcteUrgentie,
-        int inA, int inB, int inC, int inD, int inE, NtsUrgentie inUrg,
-        int fouten, bool isCorrect, float tijd)
-    {
-        if (huidigeSessieId == -1) return;
-
-        StartCoroutine(SlaCaseRoutine(level, correcteData, correcteUrgentie, inA, inB, inC, inD, inE, inUrg, fouten, isCorrect, tijd));
-    }
-
-    private IEnumerator SlaCaseRoutine(int level, Patient correcteData, NtsUrgentie correcteUrgentie,
-        int inA, int inB, int inC, int inD, int inE, NtsUrgentie inUrg,
-        int fouten, bool isCorrect, float tijd)
-    {
-        WWWForm form = new WWWForm();
-        form.AddField("actie", "sla_case_op");
-        form.AddField("sessieId", huidigeSessieId);
-        form.AddField("level", level);
-
-        // Correcte data
-        form.AddField("cA", correcteData.airway);
-        form.AddField("cB", correcteData.breathing);
-        form.AddField("cC", correcteData.circulation);
-        form.AddField("cD", correcteData.disabillity);
-        form.AddField("cE", correcteData.exposure);
-        form.AddField("cU", (int)correcteUrgentie);
-
-        // Invoer data
-        form.AddField("iA", inA);
-        form.AddField("iB", inB);
-        form.AddField("iC", inC);
-        form.AddField("iD", inD);
-        form.AddField("iE", inE);
-        form.AddField("iU", (int)inUrg);
-
-        form.AddField("fouten", fouten);
-        form.AddField("isCorrect", isCorrect ? 1 : 0);
-        form.AddField("tijd", tijd.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
-        using (UnityWebRequest www = UnityWebRequest.Post(serverUrl + "api.php", form))
+        else
         {
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogError("Fout bij SlaPatientCaseOp: " + www.error);
-            }
-            else
-            {
-                Debug.Log("[DatabaseManager] Patiënt-resultaat succesvol opgeslagen via JSON/Server!");
-            }
+            Debug.LogError($"[DatabaseManager] ❌ Fout bij starten sessie: {request.error} | URL: {apiUrl}/sessie");
         }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    //  PATIENT CASE OPSLAAN
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Slaat de uitkomst van een individuele patiënt op via de API.
+    /// Wordt aangeroepen vanuit GameManager.ControleerInvoer().
+    /// </summary>
+    public void SlaPatientCaseOp(
+        int level,
+        Patient correcteData,
+        NtsUrgentie correcteUrgentie,
+        int inA, int inB, int inC, int inD, int inE,
+        NtsUrgentie inUrg,
+        int fouten, bool isCorrect, float tijd)
+    {
+        if (!_sessieActief || _huidigeSessieId <= 0)
+        {
+            Debug.LogWarning("[DatabaseManager] ⚠️ Geen actieve sessie – patient-case wordt NIET opgeslagen. Controleer of StartNieuweSessie() is aangeroepen.");
+            return;
+        }
+
+        if (correcteData == null)
+        {
+            Debug.LogError("[DatabaseManager] ❌ correcteData (Patient) is null – kan niet opslaan.");
+            return;
+        }
+
+        StartCoroutine(SlaCaseRoutine(level, correcteData, correcteUrgentie,
+            inA, inB, inC, inD, inE, inUrg, fouten, isCorrect, tijd));
+    }
+
+    private IEnumerator SlaCaseRoutine(
+        int level,
+        Patient correcteData,
+        NtsUrgentie correcteUrgentie,
+        int inA, int inB, int inC, int inD, int inE,
+        NtsUrgentie inUrg,
+        int fouten, bool isCorrect, float tijd)
+    {
+        PatientCaseDto dto = new PatientCaseDto
+        {
+            sessieId              = _huidigeSessieId,
+            level                 = level,
+            correcteAirway        = correcteData.airway,
+            correcteBreathing     = correcteData.breathing,
+            correcteCirculation   = correcteData.circulation,
+            correcteDisability    = correcteData.disabillity,
+            correcteExposure      = correcteData.exposure,
+            correcteUrgentie      = (int)correcteUrgentie,
+            invoerAirway          = inA,
+            invoerBreathing       = inB,
+            invoerCirculation     = inC,
+            invoerDisability      = inD,
+            invoerExposure        = inE,
+            invoerUrgentie        = (int)inUrg,
+            aantalFouten          = fouten,
+            isCorrect             = isCorrect,
+            verstrekenTijdSeconden = tijd
+        };
+
+        string jsonBody = JsonUtility.ToJson(dto);
+        byte[] bodyRaw  = Encoding.UTF8.GetBytes(jsonBody);
+
+        using UnityWebRequest request = new UnityWebRequest($"{apiUrl}/patientcase", "POST");
+        request.uploadHandler   = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log($"[DatabaseManager] ✅ Patient-case opgeslagen (Level {level}, Correct: {isCorrect}, Fouten: {fouten})");
+        }
+        else
+        {
+            Debug.LogError($"[DatabaseManager] ❌ Fout bij opslaan patient-case: {request.error}");
+            Debug.LogError($"[DatabaseManager]    Body verstuurd: {jsonBody}");
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  SESSIE AFSLUITEN
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Sluit de huidige sessie af met het behaalde eindlevel.
+    /// Wordt aangeroepen vanuit TriageTimerUI.PatientAfgehandeld() bij level-up.
+    /// </summary>
     public void SluitSessie(int eindLevel)
     {
-        if (huidigeSessieId == -1) return;
+        if (!_sessieActief || _huidigeSessieId <= 0)
+        {
+            Debug.LogWarning("[DatabaseManager] ⚠️ SluitSessie aangeroepen maar er is geen actieve sessie.");
+            return;
+        }
+
         StartCoroutine(SluitSessieRoutine(eindLevel));
     }
 
     private IEnumerator SluitSessieRoutine(int eindLevel)
     {
-        WWWForm form = new WWWForm();
-        form.AddField("actie", "sluit_sessie");
-        form.AddField("sessieId", huidigeSessieId);
-        form.AddField("eindLevel", eindLevel);
+        string jsonBody = $"{{\"eindLevel\": {eindLevel}}}";
+        byte[] bodyRaw  = Encoding.UTF8.GetBytes(jsonBody);
 
-        using (UnityWebRequest www = UnityWebRequest.Post(serverUrl + "api.php", form))
+        using UnityWebRequest request = new UnityWebRequest($"{apiUrl}/sessie/{_huidigeSessieId}", "PUT");
+        request.uploadHandler   = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
         {
-            yield return www.SendWebRequest();
+            Debug.Log($"[DatabaseManager] ✅ Sessie {_huidigeSessieId} afgesloten op level {eindLevel}");
+            _sessieActief    = false;
+            _huidigeSessieId = -1;
+        }
+        else
+        {
+            Debug.LogError($"[DatabaseManager] ❌ Fout bij afsluiten sessie: {request.error}");
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  APPLICATIE STOPPEN
+    // ══════════════════════════════════════════════════════════════════
 
     private void OnApplicationQuit()
     {
-        if (huidigeSessieId != -1)
+        if (_sessieActief && _huidigeSessieId > 0)
         {
-            // Omdat de game afsluit kunnen coroutines soms niet afmaken, 
-            // maar dit stuurt in ieder geval de laatste sluitingspoging.
-            StartCoroutine(SluitSessieRoutine(-1));
+            // Synchrone best-effort afsluiting (geen yield mogelijk in OnApplicationQuit)
+            Debug.Log("[DatabaseManager] Applicatie sluit – sessie wordt afgesloten.");
+            StartCoroutine(SluitSessieRoutine(1));
         }
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  DATA TRANSFER OBJECTS
+// ══════════════════════════════════════════════════════════════════════
+
+[System.Serializable]
+public class SessieResponse
+{
+    public int id;
+}
+
+[System.Serializable]
+public class PatientCaseDto
+{
+    public int   sessieId;
+    public int   level;
+    public int   correcteAirway;
+    public int   correcteBreathing;
+    public int   correcteCirculation;
+    public int   correcteDisability;
+    public int   correcteExposure;
+    public int   correcteUrgentie;
+    public int   invoerAirway;
+    public int   invoerBreathing;
+    public int   invoerCirculation;
+    public int   invoerDisability;
+    public int   invoerExposure;
+    public int   invoerUrgentie;
+    public int   aantalFouten;
+    public bool  isCorrect;
+    public float verstrekenTijdSeconden;
 }

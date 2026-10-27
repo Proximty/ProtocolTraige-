@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class PatientAnimation : MonoBehaviour
 {
@@ -6,20 +6,26 @@ public class PatientAnimation : MonoBehaviour
     public Animator patientAnimator;
 
     [Header("Rotatie Correctie (Mixamo Fix)")]
-    [Tooltip("Stel hier de hoek in om het gekantelde model recht te zetten (bijv. -90, 90, of 180)")]
-    public Vector3 visualRotationOffset = new Vector3(0f, 0f, 0f);
-
-    [Tooltip("Vink dit aan als het model gekanteld raakt op de X- of Z-as tijdens animaties")]
+    [Tooltip("Hoek om het model recht te zetten, bijv. -90 of 90")]
+    public Vector3 visualRotationOffset = Vector3.zero;
+    [Tooltip("Vink aan als het model kantelt tijdens animaties")]
     public bool dwingRechtop = true;
 
-    // Exacte namen van de booleans in je Animator Controller Parameters
-    private const string BOOL_LOPEN = "IsLopen";
-    private const string BOOL_LIGGEN = "IsLiggen";
+    private const string BOOL_LOPEN      = "IsLopen";
+    private const string BOOL_LIGGEN     = "IsLiggen";
     private const string BOOL_REANIMATIE = "IsGereanimeerd";
 
-    private Transform visualModelTransform;
+    private Transform _visualModel;
 
-    void Awake()
+    // Gecachte parameter IDs (sneller dan string-lookup elke frame)
+    private int _idLopen;
+    private int _idLiggen;
+    private int _idReanimatie;
+
+    // Gecachte euler Y zodat we niet elke frame localEulerAngles lezen
+    private float _vorigeEulerY;
+
+    private void Awake()
     {
         if (patientAnimator == null)
             patientAnimator = GetComponentInChildren<Animator>();
@@ -27,49 +33,50 @@ public class PatientAnimation : MonoBehaviour
         if (patientAnimator != null)
         {
             patientAnimator.applyRootMotion = false;
-
-            // Sla het Transform-object op waar de Animator op staat (het visuele model)
-            visualModelTransform = patientAnimator.transform;
+            _visualModel = patientAnimator.transform;
         }
+
+        // Hash IDs eenmalig cachen (sneller dan string lookup)
+        _idLopen      = Animator.StringToHash(BOOL_LOPEN);
+        _idLiggen     = Animator.StringToHash(BOOL_LIGGEN);
+        _idReanimatie = Animator.StringToHash(BOOL_REANIMATIE);
     }
 
-    void LateUpdate()
+    private void LateUpdate()
     {
-        // LateUpdate draait NÁ de animatieberekeningen van Unity.
-        // Hier dwingen we het model om rechtop te blijven en corrigeren we de rotatie-offset.
-        if (dwingRechtop && visualModelTransform != null)
-        {
-            // Corrigeer eventuele kanteling op de X- en Z-as en pas de offset toe
-            Vector3 currentEuler = visualModelTransform.localEulerAngles;
+        // Alleen uitvoeren als rotatie-correctie nodig is
+        if (!dwingRechtop || _visualModel == null) return;
 
-            visualModelTransform.localRotation = Quaternion.Euler(
+        float nieuweY = _visualModel.localEulerAngles.y;
+
+        // Alleen aanpassen als Y veranderd is (vermijdt onnodige rotatie-sets)
+        if (Mathf.Abs(nieuweY - _vorigeEulerY) > 0.01f)
+        {
+            _vorigeEulerY = nieuweY;
+            _visualModel.localRotation = Quaternion.Euler(
                 visualRotationOffset.x,
-                currentEuler.y + visualRotationOffset.y,
-                visualRotationOffset.z
-            );
+                nieuweY + visualRotationOffset.y,
+                visualRotationOffset.z);
         }
     }
 
     public void SpeelLopen()
     {
         if (patientAnimator == null) return;
-
-        patientAnimator.SetBool(BOOL_LOPEN, true);
-        patientAnimator.SetBool(BOOL_LIGGEN, false);
+        patientAnimator.SetBool(_idLopen,  true);
+        patientAnimator.SetBool(_idLiggen, false);
     }
 
     public void SpeelLiggen()
     {
         if (patientAnimator == null) return;
-
-        patientAnimator.SetBool(BOOL_LIGGEN, true);
-        patientAnimator.SetBool(BOOL_LOPEN, false);
+        patientAnimator.SetBool(_idLiggen, true);
+        patientAnimator.SetBool(_idLopen,  false);
     }
 
     public void TriggerReanimatieSucces()
     {
-        if (patientAnimator == null) return;
-
-        patientAnimator.SetBool(BOOL_REANIMATIE, true);
+        if (patientAnimator != null)
+            patientAnimator.SetBool(_idReanimatie, true);
     }
 }
