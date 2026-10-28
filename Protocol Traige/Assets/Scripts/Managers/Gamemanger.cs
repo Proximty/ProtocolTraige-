@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public enum NtsUrgentie
 {
@@ -20,7 +20,6 @@ public class GameManager : MonoBehaviour
     [Header("Bed Instellingen")]
     public Transform bedTransform;
     public BoxCollider bedCollider;
-    
     [Header("UI & Timer Reference")]
     public TriageTimerUI timerUI;
 
@@ -47,21 +46,7 @@ public class GameManager : MonoBehaviour
             ? "Alle ABCDE-scores en NTS-urgentie zijn correct!"
             : $"Je hebt {fouten} fout(en) gemaakt in de beoordeling.";
 
-        // Gegevens direct doorsturen naar de Database / API
-        if (DatabaseManager.Instance != null)
-        {
-            float verstrekenTijd = timerUI != null ? timerUI.GetVerstrekenTijd() : 30f;
-            int level = timerUI != null ? timerUI.huidigLevel : 1;
-            DatabaseManager.Instance.SlaPatientCaseOp(
-                level,
-                huidigePatient,
-                correcteUrgentie,
-                airway, breathing, circulation, disability, exposure, gekozenUrgentie,
-                fouten, allesGoed, verstrekenTijd
-            );
-        }
-
-        // Geef door aan de Timer dat de patiënt is afgehandeld
+        // Geef door aan de Timer dat de pati�nt is afgehandeld
         if (timerUI != null)
         {
             timerUI.PatientAfgehandeld(allesGoed, titel, bericht);
@@ -81,7 +66,6 @@ public class GameManager : MonoBehaviour
 
         return NtsUrgentie.U5_Advies;
     }
-
     public void RondPatientAf()
     {
         if (patientMovement != null)
@@ -89,4 +73,5 @@ public class GameManager : MonoBehaviour
             patientMovement.StartLopenNaarExit();
         }
     }
+
 }
