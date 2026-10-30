@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
@@ -35,7 +36,7 @@ public class ClipboardInteraction : MonoBehaviour
 
     [Header("Feedback")]
     public TextMeshProUGUI feedbackTekst;
-    public float feedbackDuur = 3f;
+    public float feedbackDuur = 4f;
 
     [Header("Manager")]
     public GameManager gameManager;
@@ -70,6 +71,8 @@ public class ClipboardInteraction : MonoBehaviour
         KoppelLabelAanSlider(exposureSlider, exposureLabel);
         KoppelLabelAanSlider(pijnSlider, pijnLabel);
 
+        InitialiseerUrgentieDropdown();
+
         if (verstuurKnop != null)
             verstuurKnop.onClick.AddListener(VerstuurGegevens);
 
@@ -87,6 +90,24 @@ public class ClipboardInteraction : MonoBehaviour
 
         if (gameManager == null)
             gameManager = FindFirstObjectByType<GameManager>();
+    }
+
+    private void InitialiseerUrgentieDropdown()
+    {
+        if (urgentieDropdown == null) return;
+
+        urgentieDropdown.ClearOptions();
+        urgentieDropdown.AddOptions(new List<string>
+        {
+            "U0 - Reanimatie",
+            "U1 - Levensbedreigend",
+            "U2 - Spoed",
+            "U3 - Dringend",
+            "U4 - Niet dringend",
+            "U5 - Advies"
+        });
+        urgentieDropdown.value = 3; // Standaard op U3 Dringend
+        urgentieDropdown.RefreshShownValue();
     }
 
     private void OnDestroy()
@@ -118,6 +139,16 @@ public class ClipboardInteraction : MonoBehaviour
     {
     }
 
+    public void ToonAuscultatieFeedback(string bericht)
+    {
+        if (feedbackTekst != null)
+        {
+            feedbackTekst.text = bericht;
+            feedbackTekst.color = new Color(0.2f, 0.8f, 1f); // Lichtblauw
+            feedbackTimer = 6f;
+        }
+    }
+
     public void VerstuurGegevens()
     {
         if (gameManager == null)
@@ -135,19 +166,19 @@ public class ClipboardInteraction : MonoBehaviour
             return;
         }
 
-        int airway = airwaySlider != null ? (int)airwaySlider.value : 1;
-        int breathing = breathingSlider != null ? (int)breathingSlider.value : 1;
-        int circulation = circulationSlider != null ? (int)circulationSlider.value : 1;
-        int disability = disabilitySlider != null ? (int)disabilitySlider.value : 1;
-        int exposure = exposureSlider != null ? (int)exposureSlider.value : 1;
+        int airway = airwaySlider != null ? (int)airwaySlider.value : 5;
+        int breathing = breathingSlider != null ? (int)breathingSlider.value : 5;
+        int circulation = circulationSlider != null ? (int)circulationSlider.value : 5;
+        int disability = disabilitySlider != null ? (int)disabilitySlider.value : 5;
+        int exposure = exposureSlider != null ? (int)exposureSlider.value : 5;
         int pijn = pijnSlider != null ? (int)pijnSlider.value : 0;
-        NtsUrgentie urgentie = urgentieDropdown != null ? (NtsUrgentie)urgentieDropdown.value : NtsUrgentie.U5_Advies;
+        NtsUrgentie urgentie = urgentieDropdown != null ? (NtsUrgentie)urgentieDropdown.value : NtsUrgentie.U3_Dringend;
 
         gameManager.ControleerInvoer(airway, breathing, circulation, disability, exposure, pijn, urgentie);
 
         if (feedbackTekst != null)
         {
-            feedbackTekst.text = "Gegevens verstuurd!";
+            feedbackTekst.text = "Triage beoordeling opgeslagen!";
             feedbackTekst.color = Color.green;
             feedbackTimer = feedbackDuur;
         }
@@ -155,19 +186,19 @@ public class ClipboardInteraction : MonoBehaviour
 
     public void ResetSliders()
     {
-        if (airwaySlider != null) airwaySlider.value = airwaySlider.minValue;
-        if (breathingSlider != null) breathingSlider.value = breathingSlider.minValue;
-        if (circulationSlider != null) circulationSlider.value = circulationSlider.minValue;
-        if (disabilitySlider != null) disabilitySlider.value = disabilitySlider.minValue;
-        if (exposureSlider != null) exposureSlider.value = exposureSlider.minValue;
+        if (airwaySlider != null) airwaySlider.value = 5;
+        if (breathingSlider != null) breathingSlider.value = 5;
+        if (circulationSlider != null) circulationSlider.value = 5;
+        if (disabilitySlider != null) disabilitySlider.value = 5;
+        if (exposureSlider != null) exposureSlider.value = 5;
         if (pijnSlider != null) pijnSlider.value = 0;
-        if (urgentieDropdown != null) urgentieDropdown.value = 0;
+        if (urgentieDropdown != null) urgentieDropdown.value = 3;
 
         if (feedbackTekst != null)
         {
-            feedbackTekst.text = "Sliders gereset.";
+            feedbackTekst.text = "Sliders hersteld.";
             feedbackTekst.color = Color.white;
-            feedbackTimer = feedbackDuur;
+            feedbackTimer = 2f;
         }
     }
 
@@ -177,7 +208,7 @@ public class ClipboardInteraction : MonoBehaviour
         slider.minValue = min;
         slider.maxValue = max;
         slider.wholeNumbers = true;
-        slider.value = min;
+        slider.value = Mathf.Clamp(5, min, max);
     }
 
     private void KoppelLabelAanSlider(Slider slider, TextMeshProUGUI label)

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -15,41 +15,78 @@ public class MainMenuManager : MonoBehaviour
 
     [Header("Scene Instellingen")]
     public string gameScene  = "GameScene";
-    public string loginScene = "LoginScene";
+    public string loginScene = "Login"; // De scene heet Login.unity
 
     private void Start()
     {
-        string gebruiker = PlayerPrefs.GetString("IngelogdeGebruiker", "Onbekend");
-        welkomTekst.text = $"Welkom, {gebruiker}!";
-        statusTekst.text = "";
+        string gebruiker = PlayerPrefs.GetString("IngelogdeGebruiker", "Hanna");
+        string rol = PlayerPrefs.GetString("IngelogdeRol", "Trainee SEH");
 
-        startKnop.onClick.AddListener(StartGame);
-        uitlogKnop.onClick.AddListener(Uitloggen);
-
-        if (statusTekst != null)
+        if (welkomTekst != null)
         {
-            if (DatabaseManager.Instance != null && DatabaseManager.Instance.isVerbondenMetServer)
-                statusTekst.text = "Server: Online";
-            else
-                statusTekst.text = "Server: Lokale Modus Actief";
+            welkomTekst.text = $"Welkom, {gebruiker}!\n<size=70%>{rol}</size>";
+        }
+
+        if (startKnop != null) startKnop.onClick.AddListener(StartGame);
+        if (uitlogKnop != null) uitlogKnop.onClick.AddListener(Uitloggen);
+
+        UpdateServerEnStatsUI();
+    }
+
+    private void UpdateServerEnStatsUI()
+    {
+        if (statusTekst == null) return;
+
+        bool isOnline = (DatabaseManager.Instance != null && DatabaseManager.Instance.isVerbondenMetServer);
+        string serverLabel = isOnline ? "<color=green>Online (MySQL DB)</color>" : "<color=yellow>Lokale Modus</color>";
+        statusTekst.text = $"Server: {serverLabel}";
+
+        // Haal statistieken rechtstreeks uit de database op (Database -> Game)
+        if (DatabaseManager.Instance != null)
+        {
+            DatabaseManager.Instance.HaalStatsOp((stats) =>
+            {
+                if (statusTekst == null) return;
+
+                if (stats != null && stats.heeftData)
+                {
+                    statusTekst.text = $"Server: <color=green>Online (MySQL DB)</color>\n" +
+                                       $"Sessies: {stats.totaalSessies} | Cases: {stats.totaalCases}\n" +
+                                       $"Nauwkeurigheid: {stats.overallAccuratessePct:F1}%\n" +
+                                       $"Hoogste Level: {stats.hoogsteLevel}";
+                }
+                else
+                {
+                    statusTekst.text = $"Server: {serverLabel}\nGeen eerdere speelstatistieken.";
+                }
+            });
         }
     }
 
     public void StartGame()
     {
-        statusTekst.text = "Sessie wordt gestart...";
+        if (statusTekst != null)
+            statusTekst.text = "Sessie wordt gestart in de database...";
 
         if (DatabaseManager.Instance != null)
-            DatabaseManager.Instance.StartNieuweSessie();
+        {
+            DatabaseManager.Instance.StartNieuweSessie((sessieId) =>
+            {
+                SceneManager.LoadScene(gameScene);
+            });
+        }
         else
-            Debug.LogWarning("[MainMenuManager] DatabaseManager niet gevonden!");
-
-        SceneManager.LoadScene(gameScene);
+        {
+            SceneManager.LoadScene(gameScene);
+        }
     }
 
     private void Uitloggen()
     {
         PlayerPrefs.DeleteKey("IngelogdeGebruiker");
+        PlayerPrefs.DeleteKey("IngelogdeGebruikerId");
+        PlayerPrefs.DeleteKey("IngelogdeVolledigeNaam");
+        PlayerPrefs.DeleteKey("IngelogdeRol");
         PlayerPrefs.Save();
         SceneManager.LoadScene(loginScene);
     }

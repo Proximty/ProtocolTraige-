@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum NtsUrgentie
 {
@@ -20,12 +20,23 @@ public class GameManager : MonoBehaviour
     [Header("Bed Instellingen")]
     public Transform bedTransform;
     public BoxCollider bedCollider;
+
     [Header("UI & Timer Reference")]
     public TriageTimerUI timerUI;
 
     public void ControleerInvoer(int airway, int breathing, int circulation, int disability, int exposure, int pijn, NtsUrgentie gekozenUrgentie)
     {
-        if (huidigePatient == null) return;
+        // Fallback als huidigePatient nog niet rechtstreeks gekoppeld was
+        if (huidigePatient == null && patientBehavior != null)
+        {
+            huidigePatient = patientBehavior.patientData;
+        }
+
+        if (huidigePatient == null)
+        {
+            Debug.LogWarning("[GameManager] Geen actieve patient gevonden om invoer tegen te controleren!");
+            return;
+        }
 
         int fouten = 0;
 
@@ -36,7 +47,9 @@ public class GameManager : MonoBehaviour
         if (exposure != huidigePatient.exposure) fouten++;
 
         int totaleScore = huidigePatient.airway + huidigePatient.breathing + huidigePatient.circulation + huidigePatient.disabillity + huidigePatient.exposure;
-        NtsUrgentie correcteUrgentie = BepaalNtsKlasse(totaleScore);
+        NtsUrgentie correcteUrgentie = (huidigePatient.gewensteUrgentie >= 0)
+            ? (NtsUrgentie)huidigePatient.gewensteUrgentie
+            : BepaalNtsKlasse(totaleScore);
 
         if (gekozenUrgentie != correcteUrgentie) fouten++;
 
@@ -46,7 +59,29 @@ public class GameManager : MonoBehaviour
             ? "Alle ABCDE-scores en NTS-urgentie zijn correct!"
             : $"Je hebt {fouten} fout(en) gemaakt in de beoordeling.";
 
-        // Geef door aan de Timer dat de pati�nt is afgehandeld
+        float verstrekenTijd = (timerUI != null) ? timerUI.KrijgVerstrekenTijd() : 30f;
+        int level = (timerUI != null) ? timerUI.huidigLevel : 1;
+
+        // ─── Opslaan in de Database (Game -> Database) ────────────────────────
+        if (DatabaseManager.Instance != null)
+        {
+            DatabaseManager.Instance.SlaPatientCaseOp(
+                level,
+                huidigePatient,
+                correcteUrgentie,
+                airway, breathing, circulation, disability, exposure,
+                gekozenUrgentie,
+                fouten,
+                allesGoed,
+                verstrekenTijd
+            );
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] DatabaseManager Instance is null, case niet opgeslagen.");
+        }
+
+        // Geef door aan de Timer dat de patient is afgehandeld
         if (timerUI != null)
         {
             timerUI.PatientAfgehandeld(allesGoed, titel, bericht);
@@ -66,6 +101,7 @@ public class GameManager : MonoBehaviour
 
         return NtsUrgentie.U5_Advies;
     }
+
     public void RondPatientAf()
     {
         if (patientMovement != null)
@@ -73,5 +109,4 @@ public class GameManager : MonoBehaviour
             patientMovement.StartLopenNaarExit();
         }
     }
-
 }

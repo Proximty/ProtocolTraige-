@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
 
 public class LoginManager : MonoBehaviour
 {
-    // ─── Login paneel ────────────────────────────────────────────────────────
+    // â”€â”€â”€ Login paneel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Header("Login Paneel")]
     public GameObject loginPaneel;
@@ -15,7 +15,7 @@ public class LoginManager : MonoBehaviour
     public Button naarRegistratieKnop;
     public TextMeshProUGUI loginFoutTekst;
 
-    // ─── Registratie paneel ──────────────────────────────────────────────────
+    // â”€â”€â”€ Registratie paneel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Header("Registratie Paneel")]
     public GameObject registratiePaneel;
@@ -26,20 +26,21 @@ public class LoginManager : MonoBehaviour
     public Button naarLoginKnop;
     public TextMeshProUGUI registratieFoutTekst;
 
-    // ─── Laad paneel ─────────────────────────────────────────────────────────
+    // â”€â”€â”€ Laad paneel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Header("Laad Paneel")]
     public GameObject laadPaneel;
 
-    // ─── Scene ───────────────────────────────────────────────────────────────
+    // â”€â”€â”€ Scene â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Header("Scene Instellingen")]
     public string hoofdMenuScene = "MainMenu";
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private void Start()
     {
+        var db = DatabaseManager.Instance;
         if (laadPaneel != null) laadPaneel.SetActive(false);
         ToonLoginPaneel();
 
@@ -49,7 +50,7 @@ public class LoginManager : MonoBehaviour
         if (naarLoginKnop != null) naarLoginKnop.onClick.AddListener(ToonLoginPaneel);
     }
 
-    // ─── Paneel wisselen ─────────────────────────────────────────────────────
+    // â”€â”€â”€ Paneel wisselen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private void ToonLoginPaneel()
     {
@@ -67,7 +68,7 @@ public class LoginManager : MonoBehaviour
         VRVirtualKeyboard.Instance?.KoppelAlleInputFieldsInScene();
     }
 
-    // ─── Inloggen ────────────────────────────────────────────────────────────
+    // â”€â”€â”€ Inloggen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public void ProbeerInloggen()
     {
@@ -105,7 +106,7 @@ public class LoginManager : MonoBehaviour
         }
     }
 
-    // ─── Registreren ─────────────────────────────────────────────────────────
+    // â”€â”€â”€ Registreren â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public void ProbeerRegistreren()
     {
@@ -173,7 +174,7 @@ public class LoginManager : MonoBehaviour
         }
     }
 
-    // ─── Navigatie ───────────────────────────────────────────────────────────
+    // â”€â”€â”€ Navigatie â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private void LaadHoofdmenu()
     {
@@ -186,3 +187,4 @@ public class LoginManager : MonoBehaviour
     public void OnEnterInLoginVeld(string _) => ProbeerInloggen();
     public void OnEnterInRegistratieVeld(string _) => ProbeerRegistreren();
 }
+

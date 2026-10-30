@@ -1,8 +1,8 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class PatientBehavior : MonoBehaviour
 {
-    [Header("Patiënt Data")]
+    [Header("Patient Data")]
     public Patient patientData;
     public NtsUrgentie toegewezenUrgentie;
 
@@ -35,7 +35,8 @@ public class PatientBehavior : MonoBehaviour
     {
         if (patientData != null)
         {
-            Debug.Log($"<color=green>[PATIËNT DATA GELADEN]</color> " +
+            Debug.Log($"<color=green>[PATIENT DATA GELADEN]</color> " +
+                      $"Titel: {patientData.titel} | " +
                       $"Airway: {patientData.airway} | " +
                       $"Breathing: {patientData.breathing} | " +
                       $"Circulation: {patientData.circulation} | " +
@@ -43,11 +44,22 @@ public class PatientBehavior : MonoBehaviour
                       $"Exposure: {patientData.exposure}");
         }
 
-        // Laat de patiënt ALTIJD eerst lopen naar het bed bij de start
+        // Laat de patient ALTIJD eerst lopen naar het bed bij de start
         if (movement != null && movement.bedTransform != null)
         {
             movement.StartLopenNaarBed();
         }
+    }
+
+    public void PasScenarioToe(ScenarioItemDto scenario)
+    {
+        if (scenario == null) return;
+        if (patientData == null)
+            patientData = ScriptableObject.CreateInstance<Patient>();
+
+        patientData.VulMetScenario(scenario);
+        toegewezenUrgentie = (NtsUrgentie)scenario.urgentie;
+        Debug.Log($"<color=cyan>[DATABASE SCENARIO GELADEN]</color> {scenario.titel} (NTS: {toegewezenUrgentie})");
     }
 
     public void StelGedragIn(NtsUrgentie urgentie)
@@ -87,8 +99,7 @@ public class PatientBehavior : MonoBehaviour
     private void ReanimatieSucces()
     {
         isGereanimeerd = true;
-       
-        Debug.Log("Patiënt is succesvol gereanimeerd!");
+        Debug.Log("Patient is succesvol gereanimeerd!");
     }
 
     // --- Audio Doorverwijzingen (voor overige scripts in de scene) ---
@@ -107,7 +118,20 @@ public class PatientBehavior : MonoBehaviour
         if (audioController != null) audioController.ExamineerBreathing();
     }
 
-    // --- Dialoog Opties ---
-    public string GetDisabilityReactie() => patientData != null && patientData.disabillity >= 8 ? "\"Ik voel me prima hoor!\"" : "\"Ik ben erg duizelig...\"";
-    public string GetExposureReactie() => patientData != null && patientData.exposure >= 8 ? "\"Mijn lichaamsgevoel is normaal.\"" : "\"Ik heb het koud...\"";
+    // --- Dialoog Opties (gevoed vanuit scenario database of fallback) ---
+    public string GetDisabilityReactie()
+    {
+        if (patientData != null && !string.IsNullOrEmpty(patientData.disabilityReactie))
+            return patientData.disabilityReactie;
+
+        return patientData != null && patientData.disabillity >= 8 ? "\"Ik voel me prima hoor!\"" : "\"Ik ben erg duizelig...\"";
+    }
+
+    public string GetExposureReactie()
+    {
+        if (patientData != null && !string.IsNullOrEmpty(patientData.exposureReactie))
+            return patientData.exposureReactie;
+
+        return patientData != null && patientData.exposure >= 8 ? "\"Mijn lichaamsgevoel is normaal.\"" : "\"Ik heb het koud...\"";
+    }
 }

@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TMPro;
 
 public class TriageTimerUI : MonoBehaviour
@@ -77,6 +77,11 @@ public class TriageTimerUI : MonoBehaviour
         }
     }
 
+    public float KrijgVerstrekenTijd()
+    {
+        return Mathf.Max(0f, maxTijdInSeconden - resterendeTijd);
+    }
+
     public void ResetLevelProgressie()
     {
         huidigLevel = 1;
@@ -95,7 +100,7 @@ public class TriageTimerUI : MonoBehaviour
     {
         if (levelTekst != null)
         {
-            levelTekst.text = $"Level {huidigLevel} - Patiënt: {afgehandeldePatientenInLevel}/{benodigdAantalPatienten}";
+            levelTekst.text = $"Level {huidigLevel} - Patient: {afgehandeldePatientenInLevel}/{benodigdAantalPatienten}";
         }
     }
 
@@ -154,6 +159,21 @@ public class TriageTimerUI : MonoBehaviour
 
             if (totaleScore >= 26) urgentie = NtsUrgentie.U0_Reanimatie;
             else urgentie = NtsUrgentie.U5_Advies;
+
+            // Log time-out case in database
+            if (DatabaseManager.Instance != null)
+            {
+                DatabaseManager.Instance.SlaPatientCaseOp(
+                    huidigLevel,
+                    gameManager.huidigePatient,
+                    urgentie,
+                    0, 0, 0, 0, 0,
+                    NtsUrgentie.U5_Advies,
+                    6,
+                    false,
+                    maxTijdInSeconden
+                );
+            }
         }
 
         if (urgentie == NtsUrgentie.U0_Reanimatie || urgentie == NtsUrgentie.U1_Levensbedreigend || urgentie == NtsUrgentie.U2_Spoed)
@@ -162,7 +182,7 @@ public class TriageTimerUI : MonoBehaviour
         }
         else
         {
-            PatientAfgehandeld(false, "PATIËNT WEGGEGAAN", "Je hebt er te lang over gedaan. De patiënt is boos vertrokken.");
+            PatientAfgehandeld(false, "PATIENT WEGGEGAAN", "Je hebt er te lang over gedaan. De patient is vertrokken.");
 
             if (gameManager != null && gameManager.patientMovement != null)
             {
@@ -184,7 +204,7 @@ public class TriageTimerUI : MonoBehaviour
 
     private void AfrondenReanimatie()
     {
-        PatientAfgehandeld(false, "REANIMATIE AFGEROND", "Patiënt is geheranimeerd, maar de triage is mislukt door tijdgebrek.");
+        PatientAfgehandeld(false, "REANIMATIE AFGEROND", "Patient is geheranimeerd, maar de triage is mislukt door tijdgebrek.");
 
         if (gameManager != null && gameManager.patientMovement != null)
         {
@@ -192,9 +212,6 @@ public class TriageTimerUI : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Wordt aangeroepen wanneer een patiënt klaar is (goed, fout of reanimatie)
-    /// </summary>
     public void PatientAfgehandeld(bool isCorrect, string titel, string bericht)
     {
         StopTimer();
@@ -207,7 +224,13 @@ public class TriageTimerUI : MonoBehaviour
             afgehandeldePatientenInLevel = 0;
             UpdateBenodigdAantal();
 
-            string levelVoltooidBericht = $"{bericht}\n\nGEFELICITEERD! Level {huidigLevel - 1} voltooid! Level {huidigLevel} heeft nu {benodigdAantalPatienten} patiënten.";
+            // Werk sessie level bij in de database
+            if (DatabaseManager.Instance != null)
+            {
+                DatabaseManager.Instance.UpdateSessieLevel(huidigLevel);
+            }
+
+            string levelVoltooidBericht = $"{bericht}\n\nGEFELICITEERD! Level {huidigLevel - 1} voltooid!\nLevel {huidigLevel} gestart ({benodigdAantalPatienten} patienten).";
             ToonFeedback(titel, levelVoltooidBericht);
         }
         else

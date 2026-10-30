@@ -7,11 +7,22 @@ CREATE DATABASE IF NOT EXISTS protocol_triage;
 USE protocol_triage;
 
 -- 1. Tabellen controleren/aanmaken
+CREATE TABLE IF NOT EXISTS Gebruiker (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    Gebruikersnaam VARCHAR(100) NOT NULL UNIQUE,
+    Wachtwoord VARCHAR(255) NOT NULL,
+    VolledigeNaam VARCHAR(255) NOT NULL,
+    Rol VARCHAR(50) DEFAULT 'Trainee',
+    AangemaaktOp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS Sessie (
     Id INT AUTO_INCREMENT PRIMARY KEY,
+    GebruikerId INT DEFAULT 1,
     StartTijd DATETIME NOT NULL,
     EindTijd DATETIME,
-    EindLevel INT DEFAULT 1
+    EindLevel INT DEFAULT 1,
+    FOREIGN KEY (GebruikerId) REFERENCES Gebruiker(Id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS PatientCase (
@@ -37,12 +48,45 @@ CREATE TABLE IF NOT EXISTS PatientCase (
     FOREIGN KEY (SessieId) REFERENCES Sessie(Id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS Scenario (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    Level INT NOT NULL,
+    Titel VARCHAR(100) NOT NULL,
+    Klacht TEXT,
+    Airway INT NOT NULL,
+    Breathing INT NOT NULL,
+    Circulation INT NOT NULL,
+    Disability INT NOT NULL,
+    Exposure INT NOT NULL,
+    Pijn INT DEFAULT 0,
+    Urgentie INT NOT NULL,
+    DisabilityReactie VARCHAR(255),
+    ExposureReactie VARCHAR(255)
+);
+
+-- Standaard gebruikers toevoegen
+INSERT IGNORE INTO Gebruiker (Id, Gebruikersnaam, Wachtwoord, VolledigeNaam, Rol, AangemaaktOp) VALUES
+(1, 'hanna', 'admin', 'Hanna Versluizen', 'Trainee SEH', NOW()),
+(2, 'admin', '1234', 'Systeem Beheerder', 'Docent / Beheerder', NOW());
+
+-- Medische scenario's toevoegen
+INSERT IGNORE INTO Scenario (Id, Level, Titel, Klacht, Airway, Breathing, Circulation, Disability, Exposure, Pijn, Urgentie, DisabilityReactie, ExposureReactie) VALUES
+(1, 1, 'Lichte enkelverstuiking', 'Patient heeft zich verstapt tijdens het hardlopen.', 3, 2, 3, 3, 2, 4, 4, '\"Ik voel me verder prima, alleen mijn enkel doet pijn.\"', '\"Er is een lichte zwelling aan mijn rechterenkel zichtbaar.\"'),
+(2, 1, 'Oppervlakkige snijwond hand', 'Gesneden bij het koken, bloeden is gestopt.', 5, 5, 4, 6, 5, 3, 3, '\"Ik ben niet duizelig, het schrikken was het ergste.\"', '\"Geen actieve bloeding meer, wond is 3 centimeter lang.\"'),
+(3, 2, 'Acute Benauwdheid (Astma)', 'Ernstige piepende ademhaling en tachypneu.', 6, 7, 6, 5, 5, 2, 2, '\"Ik ben licht in mijn hoofd door het snelle ademen...\"', '\"Huid voelt klam en bleek aan.\"'),
+(4, 2, 'Thoracale Pijn (Verdenking ACS)', 'Drukkende pijn op de borst met uitstraling naar de linkerarm.', 8, 8, 7, 6, 7, 7, 1, '\"Ik voel me erg zwak en misselijk...\"', '\"Grauwe gelaatskleur en klam zweet op het voorhoofd.\"'),
+(5, 3, 'Anafylactische Reactie', 'Stridor na wespensteek, plotselinge zwelling gelaat en keel.', 8, 8, 2, 8, 3, 8, 1, '\"Praten lukt bijna niet meer... help me...\"', '\"Rode galbulten over het hele lichaam en gezwollen lippen.\"'),
+(6, 3, 'Hartstilstand (Reanimatie Setting)', 'Patient reageert niet, afwezige ademhaling en pols.', 9, 9, 9, 9, 8, 0, 0, '\"(Geen reactie, patient is bewusteloos)\"', '\"Lijkbleek, cyanotische lippen en geen perifere circulatie.\"');
+
 -- Maak eventuele oude testdata leeg
 DELETE FROM PatientCase;
 DELETE FROM Sessie;
 
 -- 2. Drie speelsessies invoegen
-INSERT INTO Sessie (Id, StartTijd, EindTijd, EindLevel) VALUES
+INSERT INTO Sessie (Id, GebruikerId, StartTijd, EindTijd, EindLevel) VALUES
+(1, 1, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(DATE_SUB(NOW(), INTERVAL 2 DAY), INTERVAL 6 MINUTE), 1),
+(2, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 10 MINUTE), 2),
+(3, 1, NOW(), DATE_ADD(NOW(), INTERVAL 14 MINUTE), 3);
 (1, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(DATE_SUB(NOW(), INTERVAL 2 DAY), INTERVAL 6 MINUTE), 1),
 (2, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(DATE_SUB(NOW(), INTERVAL 1 DAY), INTERVAL 10 MINUTE), 2),
 (3, NOW(), DATE_ADD(NOW(), INTERVAL 14 MINUTE), 3);
